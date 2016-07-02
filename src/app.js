@@ -10,6 +10,7 @@ var UI = require('ui');
 var Vector2 = require('vector2');
 var serverMCP = "wss://mcp.cfapps.io:4443";
 var wsData = serverMCP + "/data";
+var wsCtrl = serverMCP + "/control";
 var statusNum = -1;
 var readingStatus = {
   autoMode: false,
@@ -41,7 +42,7 @@ var HLABEL = ' %';
 var VLABEL = ' v';
 var LLABEL = ' w';
 var WSLABEL = ' mph';
-var WDLABEL = '';
+// var WDLABEL = '';
 var RLABEL = ' in';
 var PLABEL = ' Pa';
 
@@ -51,13 +52,13 @@ var page1 = new UI.Window({
 var page2 = new UI.Window({
   status: false
 });
-
+var statusMenu = new UI.Menu();
 var gaugeSize = page1.size()
   .divideScalar(2);
 var xSize = gaugeSize.x - 2;
 var ySize = gaugeSize.y - 2;
-console.log("xSize=" + xSize);
-console.log("ySize=" + ySize);
+// console.log("xSize=" + xSize);
+// console.log("ySize=" + ySize);
 var radOffset = new Vector2(0,0);
 var txtOffset = new Vector2(0,0);
 
@@ -434,6 +435,9 @@ page2.on('click', 'up', function(e) {
  */
 page1.show();
 
+/*
+ * Data functionality
+ */
 function populateStatus(status) {
   if (status > 31) {
     readingStatus.autoMode = true;
@@ -482,7 +486,8 @@ webSocketData.onclose = function(event) {
 };
 
 webSocketData.onmessage = function(event) {
-  console.log("Message received: " + event.data);
+  //console.log("Message received: " + event.data);
+  console.log("Data received.");
   
   var json = JSON.parse(event.data);
   //var time = new Date().getTime();
@@ -491,18 +496,21 @@ webSocketData.onmessage = function(event) {
   //var temp = json.temp.toFixed(1) + ' C';
   var temp = json.temp.toFixed(1);
   var hum = json.hum.toFixed(1);
-  var volts = json.volts.toFixed(3);
+  var volts = json.volts.toFixed(2);
   var lum = json.lum.toFixed(2);
   var windDir = json.windDir;
   var windSpeed = json.windSpeed.toFixed(2);
-  var rainfall = json.rainfall;
+  var rainfall = json.rainfall.toFixed(1);
   var pressure = json.pressure.toFixed(0);
-  var status = json.status;
+  //var status = json.status;
 
   if (json.status !== null) {
     var st = parseInt(json.status);
     if (st !== parseInt(statusNum)) {
+      // Store newly-received status as current
       statusNum = st;
+      
+      // Populate readingStatus object with current values for physical interfaces
       populateStatus(st);
     }
   }
@@ -524,112 +532,141 @@ webSocketData.onmessage = function(event) {
   // No label for wind direction, just the readout
   rLabel.text(rainfall + RLABEL);
   pLabel.text(pressure + PLABEL);
-  
-  // Populate readingStatus object with current values for physical interfaces
-  populateStatus(status);
 };
 
-
-// var populateStatusMenu = function(currentStatus) {
-//   var items = [];
+/*
+ * Data+Control functionality
+ */
+var populateStatusMenu = function(currentStatus) {
+  var items = [];
   
-//   items.push({
-//     title: 'Auto Mode',
-//     subtitle: currentStatus.autoMode
-//   });
-//   items.push({
-//     title: 'Power On',
-//     subtitle: currentStatus.powerOn
-//   });
-//   items.push({
-//     title: 'Status Lamp On',
-//     subtitle: currentStatus.statusLamp
-//   });
-//   items.push({
-//     title: 'Windows Open',
-//     subtitle: currentStatus.windowsOpen
-//   });
-//   items.push({
-//     title: 'Interior Light On',
-//     subtitle: currentStatus.intLightOn
-//   });
+  items.push({
+    title: 'Auto Mode',
+    subtitle: currentStatus.autoMode
+  });
+  items.push({
+    title: 'Power On',
+    subtitle: currentStatus.powerOn
+  });
+  items.push({
+    title: 'Status Lamp On',
+    subtitle: currentStatus.statusLamp
+  });
+  items.push({
+    title: 'Windows Open',
+    subtitle: currentStatus.windowsOpen
+  });
+  items.push({
+    title: 'Interior Light On',
+    subtitle: currentStatus.intLightOn
+  });
 
-//   // Finally return whole array
-//   return items;
-// };
-
-// var showMenu = function() {
-//   // Construct Menu to show to user
-//   var menuItems = populateStatusMenu(readingStatus);
+  //console.log("items=" + JSON.stringify(items, null, 4));
   
-//   var statusMenu = new UI.Menu({
-//     sections: [{
-//       title: 'Current Status',
-//       items: menuItems
-//     }]
-//   });
-    
-//   statusMenu.show();
-// };
+  // Finally return whole array
+  return items;
+};
 
-// main.on('click', 'select', function(e) {
-//   showMenu();
-// });
+var showMenu = function() {
+  // Construct Menu to show to user
+  statusMenu.items(0,populateStatusMenu(readingStatus));
+  statusMenu.show();
+};
 
-// //var webSocketData = new WebSocket(serverMCP + "/data");
-// var webSocketCtrl = new WebSocket(serverMCP + "/control");
+page1.on('click', 'select', function(e) {
+  showMenu();
+});
+page2.on('click', 'select', function(e) {
+  showMenu();
+});
 
-// webSocketCtrl.onOpen = function(event) {
-//   console.log("Control websocket opened.");
-// };
+/*
+ * Control functionality
+ */
+var updateStatusWithCommand = function(command) {
+    switch (command) {
+    case "A":
+      readingStatus.autoMode = true;
+      //auto();  MAH - have to disable others when in "auto"
+      break;
+    case "a":
+      readingStatus.autoMode = false;
+      //manual();  MAH - have to enable others when in "manual"
+      break;
+    case "P":
+      readingStatus.powerOn = true;
+      break;
+    case "p":
+      readingStatus.powerOn = false;
+      break;
+    case "L":
+      readingStatus.statusLamp = true;
+      break;
+    case "l":
+      readingStatus.statusLamp = false;
+      break;
+    case "W":
+      readingStatus.windowsOpen = true;
+      break;
+    case "w":
+      readingStatus.windowsOpen = false;
+      break;
+    case "I":
+      readingStatus.intLightOn = true;
+      break;
+    case "i":
+      readingStatus.intLightOn = false;
+      break;
+  }
+};
 
-// webSocketCtrl.onClose = function(event) {
-//   console.log("Control websocket closed.");
-// };
+var webSocketCtrl = new WebSocket(wsCtrl);
 
-// webSocketCtrl.onMessage = function(event) {
-//   var command = event.data;
-//   console.log("Control websocket event received: " + command);
-//   switch (command.substring(1, 2)) {
-//     case "A":
-//       readingStatus.autoMode = true;
-//       //auto();  MAH - have to disable others when in "auto"
-//       break;
-//     case "a":
-//       readingStatus.autoMode = false;
-//       //manual();  MAH - have to enable others when in "manual"
-//       break;
-//     case "P":
-//       readingStatus.powerOn = true;
-//       break;
-//     case "p":
-//       readingStatus.powerOn = false;
-//       break;
-//     case "L":
-//       readingStatus.statusLamp = true;
-//       break;
-//     case "l":
-//       readingStatus.statusLamp = false;
-//       break;
-//     case "W":
-//       readingStatus.windowsOpen = true;
-//       break;
-//     case "w":
-//       readingStatus.windowsOpen = false;
-//       break;
-//     case "I":
-//       readingStatus.intLightOn = true;
-//       break;
-//     case "i":
-//       readingStatus.intLightOn = false;
-//       break;
-//   }
+webSocketCtrl.onopen = function(event) {
+  console.log("Control websocket opened.");
+};
+
+webSocketCtrl.onclose = function(event) {
+  console.log("Control websocket closed.");
+};
+
+webSocketCtrl.onmessage = function(event) {
+  var command = event.data;
+  console.log("Control websocket event received: " + command);
+  updateStatusWithCommand(command.substring(1, 2));
+  showMenu();
+};
+
+statusMenu.on('select', function(e) {
+  var command = "";
+
+  if (readingStatus.autoMode) {
+    if (e.itemIndex === 0) {
+      command = "a";
+    }
+  } else {
+    switch(e.itemIndex) {
+      case 0:
+        command = "A";
+        break;
+      case 1:
+        command = (readingStatus.powerOn ? "p" : "P");
+        break;
+      case 2:
+        command = (readingStatus.statusLamp ? "l" : "L");
+        break;
+      case 3:
+        command = (readingStatus.windowsOpen ? "w" : "W");
+        break;
+      case 4:
+        command = (readingStatus.intLightOn ? "i" : "I");
+        break;
+        //default:
+    }      
+  }
+  console.log("Sending control command: " + command);
   
-//   showMenu();
-// };
-
-// webSocketCtrl.onclose = function(event) {
-//   // Added to eliminate timeout/dropped connections
-//   webSocketCtrl = new WebSocket(serverMCP + "/control");
-// };
-
+  webSocketCtrl.send('0' + command);
+  updateStatusWithCommand(command);
+  showMenu();
+});
