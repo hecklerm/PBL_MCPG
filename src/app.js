@@ -539,26 +539,26 @@ webSocketData.onmessage = function(event) {
  */
 var populateStatusMenu = function(currentStatus) {
   var items = [];
-  
+
   items.push({
-    title: 'Auto Mode',
-    subtitle: currentStatus.autoMode
+    title: 'Control Mode',
+    subtitle: (currentStatus.autoMode ? 'Autonomous' : 'Manual Override')
   });
   items.push({
-    title: 'Power On',
-    subtitle: currentStatus.powerOn
+    title: 'Power',
+    subtitle: (currentStatus.powerOn ? 'ON' : 'off')
   });
   items.push({
-    title: 'Status Lamp On',
-    subtitle: currentStatus.statusLamp
+    title: 'Status Lamp',
+    subtitle: (currentStatus.statusLamp ? 'ON' : 'off')
   });
   items.push({
-    title: 'Windows Open',
-    subtitle: currentStatus.windowsOpen
+    title: 'Windows',
+    subtitle: (currentStatus.windowsOpen ? 'OPEN' : 'closed')
   });
   items.push({
-    title: 'Interior Light On',
-    subtitle: currentStatus.intLightOn
+    title: 'Interior Light',
+    subtitle: (currentStatus.intLightOn ? 'ON' : 'off')
   });
 
   //console.log("items=" + JSON.stringify(items, null, 4));
